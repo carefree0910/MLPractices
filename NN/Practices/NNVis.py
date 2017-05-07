@@ -2,7 +2,7 @@ import cv2
 import imageio
 import numpy as np
 
-# What you should finished
+# What you should finish
 
 
 def get_colors(lines, all_pos):
