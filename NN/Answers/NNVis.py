@@ -1,7 +1,6 @@
 import cv2
+import imageio
 import numpy as np
-
-from NN.Source.Basic.Layers import SubLayer
 
 
 def get_colors(lines, all_pos):
@@ -41,7 +40,7 @@ def get_line_info(weight, max_thickness=4, threshold=0.2):
                              ...                             ]
     :param max_thickness : Max thickness of each line
     :param threshold     : Threshold of hidden lines
-    :return              : (colors, thicknesses, masks)
+    :return              : (Colors, Thicknesses, Masks)
     """
     # Scale 'weight' into [-1, 1]
     w_min, w_max = np.min(weight), np.max(weight)
@@ -71,64 +70,181 @@ def get_line_info(weight, max_thickness=4, threshold=0.2):
     return colors, thicknesses, masks
 
 
+def get_graphs(activations, neuron_block_width):
+    """
+    :param activations        : Activations
+    :param neuron_block_width : Width & height of each neuron block 
+    :return                   : Neuron graphs
+    """
+    graphs = []
+
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    for _, activation in enumerate(activations):
+        graph_group = []
+        for ac in activation:
+            data = np.zeros((neuron_block_width, neuron_block_width, 3), np.uint8)
+            mask = ac >= np.average(ac)
+            data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
+            graph_group.append(data)
+        graphs.append(graph_group)
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+    return graphs
+
+
+def place_graph(graphs, half_block_width, img, i, j, x, y):
+    """
+    Render neuron graph
+    :param graphs           : Neuron graphs
+    :param half_block_width : int(neuron_graph_width / 2)
+    :param img              : Canvas
+    :param i                : i-th hidden layer
+    :param j                : j-th neuron in i-th hidden layer
+    :param x                : (x, y) is the center of the neuron graph on the canvas
+    :param y                : (x, y) is the center of the neuron graph on the canvas
+    """
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    graph = graphs[i][j]
+    img[y - half_block_width:y + half_block_width, x - half_block_width:x + half_block_width] = graph
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+
+def draw_circle(img, radius, x, y):
+    """
+    Render circle
+    :param img    : Canvas 
+    :param radius : Radius of the circle
+    :param x      : (x, y) is the center of the circle graph on the canvas
+    :param y      : (x, y) is the center of the circle graph on the canvas
+    """
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    cv2.circle(img, (x, y), radius, (20, 215, 20), radius)
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+
+def put_text(img, i, layers, y):
+    """
+    Put text on canvas
+    :param img    : Canvas 
+    :param i      : i-th hidden layer, notice that layers[i].name is the name of i-th hidden layer
+    :param layers : Layers
+    :param y      : (?, y) is the center of the neuron graph of i-th hidden layer 
+    """
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    cv2.putText(img, layers[i].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+
+def draw_line(img, i, j, k, x, y, new_x, new_y, half_block_width, colors, thicknesses):
+    """
+    Render line
+    :param img              : Canvas
+    :param i                : i-th weight matrix
+    :param j                : j-th start-point neuron
+    :param k                : k-th end-point neuron
+        therefore [i][j][k] could pick up the corresponding color and thickness 
+    :param x                : (x, y) is the start-point of the line
+    :param y                : (x, y) is the start-point of the line
+    :param new_x            : (new_x, new_y) is the end-point of the line
+    :param new_y            : (new_x, new_y) is the end-point of the line
+    :param half_block_width : int(neuron_graph_width / 2)
+    :param colors           : Colors
+    :param thicknesses      : Thicknesses
+    :return: 
+    """
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    cv2.line(img, (x, y + half_block_width), (new_x, new_y - half_block_width),
+             colors[i][j][k], thicknesses[i][j][k])
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+
+def bgr2rgb(im):
+    """
+    Switch BGR input image into RGB image
+    :param im : Input image. Type: np.ndarray
+    :return   : RGB image of input image 
+    """
+    ############################################################
+    #                  Write your code here!                   #
+    ############################################################
+
+    return im[..., ::-1]
+
+    ############################################################
+    #                           End                            #
+    ############################################################
+
+
 def draw_detail_network(show, x_min, x_max, layers, weights, get_activations):
     """
     :param show            : Whether show the frame or not 
-    :param x_min           : np.minimum(x)
-    :param x_max           : np.maximum(x)
+    :param x_min           : np.minimum(data)
+    :param x_max           : np.maximum(data)
     :param layers          : Layers in the network
     :param weights         : Weights in the network
     :param get_activations : Function which could return activations
                      Usage : get_activations(input_x, predict=True)
     :return                : 2d-visualization of the network 
     """
-    # Constants which might be useful
-    radius = 6
+    radius = 3
     width = 1200
     height = 800
     padding = 0.2
     plot_scale = 2
-    plot_precision = 0.03
+    neuron_block_width = 30
     img = np.ones((height, width, 3), np.uint8) * 255
-
-    ############################################################
-    #                  Write your code here!                   #
-    ############################################################
 
     n_layers = len(layers)
     units = [layer.shape[0] for layer in layers] + [layers[-1].shape[1]]
-    whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in layers])
-    n_sub_layers = np.sum(whether_sub_layers)  # type: int
 
-    plot_num = int(1 / plot_precision)
-    if plot_num % 2 == 1:
-        plot_num += 1
-    half_plot_num = int(plot_num * 0.5)
-    xf = np.linspace(x_min * plot_scale, x_max * plot_scale, plot_num)
-    yf = np.linspace(x_min * plot_scale, x_max * plot_scale, plot_num) * -1
+    if neuron_block_width % 2 == 1:
+        neuron_block_width += 1
+    half_block_width = int(neuron_block_width * 0.5)
+    xf = np.linspace(x_min * plot_scale, x_max * plot_scale, neuron_block_width)
+    yf = np.linspace(x_min * plot_scale, x_max * plot_scale, neuron_block_width) * -1
     input_x, input_y = np.meshgrid(xf, yf)
     input_xs = np.c_[input_x.ravel(), input_y.ravel()]
 
-    activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
+    activations = [activation.T.reshape(units[i + 1], neuron_block_width, neuron_block_width)
                    for i, activation in enumerate(get_activations(input_xs, predict=True))]
-    graphs = []
-    for j, activation in enumerate(activations):
-        graph_group = []
-        for ac in activation:
-            data = np.zeros((plot_num, plot_num, 3), np.uint8)
-            mask = ac >= np.average(ac)
-            data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
-            graph_group.append(data)
-        graphs.append(graph_group)
+    graphs = get_graphs(activations, neuron_block_width)
 
-    axis0_padding = int(height / (n_layers + 2 * padding)) * padding + plot_num
-    axis0_step = (height - 2 * axis0_padding) / (n_layers + 1)
+    axis0_padding = int(height / (n_layers + 2 * padding)) * padding + neuron_block_width
     axis0 = np.linspace(
         axis0_padding,
-        height + n_sub_layers * axis0_step - axis0_padding,
+        height - axis0_padding,
         n_layers + 1, dtype=np.int)
-    axis0 -= int(axis0_step) * np.cumsum(whether_sub_layers)
-    axis1_padding = plot_num
+    axis1_padding = neuron_block_width
     axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
              for unit in units]
     axis1 = [axis[1:-1] for axis in axis1]
@@ -143,31 +259,30 @@ def draw_detail_network(show, x_min, x_max, layers, weights, get_activations):
     for i, (y, xs) in enumerate(zip(axis0, axis1)):
         for j, x in enumerate(xs):
             if i == 0:
-                cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
+                draw_circle(img, radius, x, y)
             else:
-                graph = graphs[i - 1][j]
-                img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
+                place_graph(graphs, half_block_width, img, i-1, j, x, y)
         if i > 0:
-            cv2.putText(img, layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
+            put_text(img, i-1, layers, y)
 
     for i, y in enumerate(axis0):
         if i == len(axis0) - 1:
             break
         for j, x in enumerate(axis1[i]):
             new_y = axis0[i + 1]
-            whether_sub_layer = isinstance(layers[i], SubLayer)
             for k, new_x in enumerate(axis1[i + 1]):
-                if whether_sub_layer and j != k:
-                    continue
                 if masks[i][j][k]:
-                    cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
-                             colors[i][j][k], thicknesses[i][j][k])
-
-    ############################################################
-    #                           End                            #
-    ############################################################
+                    draw_line(img, i, j, k, x, y, new_x, new_y, half_block_width, colors, thicknesses)
 
     if show:
         cv2.imshow("Neural Network", img)
         cv2.waitKey(1)
     return img
+
+
+def make_mp4(ims, name="", fps=20):
+    print("Making mp4...")
+    with imageio.get_writer("{}.mp4".format(name), mode='I', fps=fps) as writer:
+        for im in ims:
+            writer.append_data(bgr2rgb(im))
+    print("Done")

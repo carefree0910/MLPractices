@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from NN.Source.Basic.Layers import *
 from NN.Source.Basic.Optimizers import OptFactory
-from NN.Practices.NNVis import draw_detail_network
+from NN.Answers.NNVis import draw_detail_network, make_mp4 as vis_make_mp4
 
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
@@ -792,7 +792,7 @@ class NNDist:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
         if ims:
-            VisUtil.make_mp4(ims, "NN", 20, 1)
+            vis_make_mp4(ims, "NN", 20)
 
         if draw_weights:
             ts = np.arange(epoch * train_repeat + 1)

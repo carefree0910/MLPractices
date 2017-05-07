@@ -7,6 +7,7 @@ def vis_test():
     nn = NNDist()
     epoch = 1000
     record_period = 4
+    make_mp4 = True
 
     timing = Timing(enabled=True)
     timing_level = 1
@@ -16,7 +17,7 @@ def vis_test():
     nn.preview()
     nn.feed_timing(timing)
     nn.fit(x, y, verbose=1, record_period=record_period, epoch=epoch, train_only=True,
-           draw_detailed_network=True, make_mp4=False, show_animation=True)
+           draw_detailed_network=True, make_mp4=make_mp4, show_animation=True)
     nn.draw_results()
     timing.show_timing_log(timing_level)
 
