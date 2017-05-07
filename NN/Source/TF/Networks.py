@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from tensorflow.python.framework import graph_io
 from tensorflow.python.tools import freeze_graph
 
-from NN.TF.Layers import *
+from NN.Source.TF.Layers import *
 
 from Util.ProgressBar import ProgressBar
 from Util.Util import Util, VisUtil

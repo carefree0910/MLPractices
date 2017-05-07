@@ -1,8 +1,8 @@
-from NN.Errors import *
-from NN.Basic.Optimizers import *
+from NN.Source.Errors import *
+from NN.Source.Basic.Optimizers import *
 
 try:
-    from NN.Basic.CFunc.core import col2im_6d_cython
+    from NN.Source.Basic.CFunc.core import col2im_6d_cython
     cython_flag = True
 except ImportError:
     print("Cython codes are not compiled, naive cnn bp algorithm will be used.")

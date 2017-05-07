@@ -1,8 +1,8 @@
 import numpy as np
 from math import ceil
 
-from NN.Errors import *
-from NN.TF.Optimizers import *
+from NN.Source.Errors import *
+from NN.Source.TF.Optimizers import *
 
 
 class Layer:

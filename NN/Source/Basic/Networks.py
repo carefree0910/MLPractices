@@ -7,13 +7,12 @@ import matplotlib.pyplot as plt
 from math import sqrt, ceil
 from mpl_toolkits.mplot3d import Axes3D
 
-from NN.Basic.Layers import *
-from NN.Basic.Optimizers import OptFactory
+from NN.Source.Basic.Layers import *
+from NN.Source.Basic.Optimizers import OptFactory
+from NN.Practices.NNVis import draw_detail_network
 
 from Util.ProgressBar import ProgressBar
 from Util.Util import VisUtil
-
-# Naive pure numpy version
 
 
 class NNVerbose:
@@ -45,7 +44,6 @@ class NNDist:
 
         self._whether_apply_bias = False
         self._current_dimension = 0
-        self._cost_layer = "Undefined"
 
         self._logs = {}
         self._timings = {}
@@ -92,7 +90,6 @@ class NNDist:
 
         self._whether_apply_bias = False
         self._current_dimension = 0
-        self._cost_layer = "Undefined"
 
         self._logs = []
         self._timings = {}
@@ -246,19 +243,6 @@ class NNDist:
         self._update_layer_information(layer)
 
     @NNTiming.timeit(level=4)
-    def _add_cost_layer(self, output_dim):
-        last_layer = self._layers[-1]
-        last_layer_root = last_layer.root
-        if not isinstance(last_layer, CostLayer):
-            if last_layer_root.name == "Sigmoid" or last_layer_root.name == "Softmax":
-                self._cost_layer = "CrossEntropy"
-            else:
-                self._cost_layer = "MSE"
-            self.add(self._cost_layer, (output_dim,))
-        else:
-            self._cost_layer = last_layer.cost_function
-
-    @NNTiming.timeit(level=4)
     def _update_layer_information(self, layer):
         self._layer_params.append(layer.params)
         if len(self._layer_params) > 1 and not layer.is_sub_layer:
@@ -383,83 +367,8 @@ class NNDist:
         return img
 
     @NNTiming.timeit(level=1)
-    def _draw_detailed_network(self, show, radius=6, width=1200, height=800, padding=0.2,
-                               plot_scale=2, plot_precision=0.03,
-                               sub_layer_height_scale=0):
-
-        layers = len(self._layers) + 1
-        units = [layer.shape[0] for layer in self._layers] + [self._layers[-1].shape[1]]
-        whether_sub_layers = np.array([False] + [isinstance(layer, SubLayer) for layer in self._layers])
-        n_sub_layers = np.sum(whether_sub_layers)  # type: int
-
-        plot_num = int(1 / plot_precision)
-        if plot_num % 2 == 1:
-            plot_num += 1
-        half_plot_num = int(plot_num * 0.5)
-        xf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num)
-        yf = np.linspace(self._x_min * plot_scale, self._x_max * plot_scale, plot_num) * -1
-        input_x, input_y = np.meshgrid(xf, yf)
-        input_xs = np.c_[input_x.ravel(), input_y.ravel()]
-
-        activations = [activation.T.reshape(units[i + 1], plot_num, plot_num)
-                       for i, activation in enumerate(self._get_activations(input_xs, predict=True))]
-        graphs = []
-        for j, activation in enumerate(activations):
-            graph_group = []
-            for ac in activation:
-                data = np.zeros((plot_num, plot_num, 3), np.uint8)
-                mask = ac >= np.average(ac)
-                data[mask], data[~mask] = [0, 165, 255], [255, 165, 0]
-                graph_group.append(data)
-            graphs.append(graph_group)
-
-        img = np.ones((height, width, 3), np.uint8) * 255
-        axis0_padding = int(height / (layers - 1 + 2 * padding)) * padding + plot_num
-        axis0_step = (height - 2 * axis0_padding) / layers
-        sub_layer_decrease = int((1 - sub_layer_height_scale) * axis0_step)
-        axis0 = np.linspace(
-            axis0_padding,
-            height + n_sub_layers * sub_layer_decrease - axis0_padding,
-            layers, dtype=np.int)
-        axis0 -= sub_layer_decrease * np.cumsum(whether_sub_layers)
-        axis1_padding = plot_num
-        axis1 = [np.linspace(axis1_padding, width - axis1_padding, unit + 2, dtype=np.int)
-                 for unit in units]
-        axis1 = [axis[1:-1] for axis in axis1]
-
-        colors, thicknesses, masks = [], [], []
-        for weight in self._weights:
-            line_info = VisUtil.get_line_info(weight.copy())
-            colors.append(line_info[0])
-            thicknesses.append(line_info[1])
-            masks.append(line_info[2])
-
-        for i, (y, xs) in enumerate(zip(axis0, axis1)):
-            for j, x in enumerate(xs):
-                if i == 0:
-                    cv2.circle(img, (x, y), radius, (20, 215, 20), int(radius / 2))
-                else:
-                    graph = graphs[i - 1][j]
-                    img[y - half_plot_num:y + half_plot_num, x - half_plot_num:x + half_plot_num] = graph
-            if i > 0:
-                cv2.putText(img, self._layers[i - 1].name, (12, y - 36), cv2.LINE_AA, 0.6, (0, 0, 0), 1)
-
-        for i, y in enumerate(axis0):
-            if i == len(axis0) - 1:
-                break
-            for j, x in enumerate(axis1[i]):
-                new_y = axis0[i + 1]
-                whether_sub_layer = isinstance(self._layers[i], SubLayer)
-                for k, new_x in enumerate(axis1[i + 1]):
-                    if whether_sub_layer and j != k:
-                        continue
-                    if masks[i][j][k]:
-                        cv2.line(img, (x, y + half_plot_num), (new_x, new_y - half_plot_num),
-                                 colors[i][j][k], thicknesses[i][j][k])
-        if show:
-            cv2.imshow("Neural Network", img)
-            cv2.waitKey(1)
-        return img
+    def _draw_detailed_network(self, show):
+        return draw_detail_network(show, self._x_min, self._x_max, self._layers, self._weights, self._get_activations)
 
     @NNTiming.timeit(level=1)
     def _draw_img_network(self, show, img_shape, width=1200, height=800, padding=0.2,
@@ -676,7 +585,7 @@ class NNDist:
                     ) if isinstance(_layer, ConvLayer) else "Layer  :  {:<10s} - {}".format(
                         _layer.name, _layer.shape[1]
                     ) for _layer in self._layers[:-1]
-                ]) + "\nCost   :  {:<10s}".format(self._cost_layer)
+                ]) + "\nCost   :  {:<10s}".format(str(self._layers[-1]))
             )
         print("=" * 30 + "\n" + "Structure\n" + "-" * 30 + "\n" + rs + "\n" + "-" * 30 + "\n")
 
